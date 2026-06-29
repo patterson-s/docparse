@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 
-from .models import Section, Chunk
+from .models import Section, Chunk, StructuredSection
 
 PASSAGE_WORDS = 300
 PASSAGE_OVERLAP_WORDS = 50
@@ -65,6 +65,81 @@ def build_chunks(doc_id: str, sections: list[Section], raw_markdown: str) -> lis
         pos += 1
 
     return chunks
+
+
+def build_structured_chunks(
+    doc_id: str,
+    sections: list[StructuredSection],
+    raw_markdown: str,
+) -> list[Chunk]:
+    """Build chunks from structured sections, populating the language field."""
+    chunks: list[Chunk] = []
+    pos = 0
+
+    full_text = _strip_markdown(raw_markdown)
+    chunks.append(Chunk(
+        chunk_id=f"{doc_id}_{pos:04d}",
+        document_id=doc_id,
+        chunk_type="full_doc",
+        heading_path=[],
+        content=full_text,
+        token_count=_approx_tokens(full_text),
+        position=pos,
+        language="",
+    ))
+    pos += 1
+
+    for section in sections:
+        if not section.content.strip():
+            continue
+        chunks.append(Chunk(
+            chunk_id=f"{doc_id}_{pos:04d}",
+            document_id=doc_id,
+            chunk_type="section",
+            heading_path=[section.section_id, section.label],
+            content=section.content,
+            token_count=_approx_tokens(section.content),
+            position=pos,
+            language=section.language,
+        ))
+        pos += 1
+
+    # Passage chunks with language tracking
+    offset_map: list[tuple[int, str, list[str]]] = []
+    offset = 0
+    for s in sections:
+        stripped = _strip_markdown(s.content)
+        offset_map.append((offset, s.language, [s.section_id, s.label]))
+        offset += len(stripped) + 1
+
+    passages = _sliding_window(full_text, PASSAGE_WORDS, PASSAGE_OVERLAP_WORDS)
+    for passage_text, char_offset in passages:
+        lang, heading_path = _lang_and_path_at_offset(offset_map, char_offset)
+        chunks.append(Chunk(
+            chunk_id=f"{doc_id}_{pos:04d}",
+            document_id=doc_id,
+            chunk_type="passage",
+            heading_path=heading_path,
+            content=passage_text,
+            token_count=_approx_tokens(passage_text),
+            position=pos,
+            language=lang,
+        ))
+        pos += 1
+
+    return chunks
+
+
+def _lang_and_path_at_offset(
+    offset_map: list[tuple[int, str, list[str]]], char_offset: int
+) -> tuple[str, list[str]]:
+    lang, path = "", []
+    for pos, language, heading_path in offset_map:
+        if pos <= char_offset:
+            lang, path = language, heading_path
+        else:
+            break
+    return lang, path
 
 
 def _approx_tokens(text: str) -> int:
