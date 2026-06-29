@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 
-from mistralai import Mistral
-
 _SYSTEM = """Extract document metadata from the beginning of this document.
 Return JSON with these exact keys:
   title     (string or null)
@@ -21,6 +19,7 @@ _MAX_RETRIES = 3
 
 def extract(text: str, model: str = "mistral-medium-latest", api_key: str = "") -> dict:
     """Return a dict with title/authors/year/abstract/source from the first ~2000 chars."""
+    from mistralai import Mistral
     client = Mistral(api_key=api_key)
 
     for attempt in range(_MAX_RETRIES):

@@ -10,8 +10,6 @@ from __future__ import annotations
 import json
 import re
 
-from mistralai import Mistral
-
 from .models import Section
 
 _SYSTEM = """You are analyzing a document (OCR'd or converted to markdown) with line numbers prefixed.
@@ -106,6 +104,7 @@ def detect(lines: list[str], model: str = "mistral-medium-latest", api_key: str 
     if not lines:
         return []
 
+    from mistralai import Mistral
     client = Mistral(api_key=api_key)
     data = _call_json(client, model, lines)
     raw_sections = _fill_gaps(data.get("sections", []), len(lines))
