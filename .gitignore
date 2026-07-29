@@ -40,3 +40,6 @@ test_*.docx
 # OS
 .DS_Store
 Thumbs.db
+
+# Test/output vault artifacts
+vault_out/
