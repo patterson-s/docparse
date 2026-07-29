@@ -175,10 +175,33 @@ with front/back matter correctly separated. Tests: `tests/test_book_genre.py`.
   So chapter-level work needs no special path — point the parser at the chapter
   file and let the default genre handle it.
 
+## Telegram adapter (`docparse/telegram_bot.py` + `docparse tg`)
+
+A local-first messaging adapter: run `docparse tg` on your PC and message the
+bot a PDF/DOCX/MD (or a URL). It talks to the **local FastAPI** (`/v1/parse`),
+then writes the resulting Obsidian vault to a **local folder**.
+
+```bash
+export $(grep -v '^#' .env | xargs)            # load MISTRAL_API_KEY + TELEGRAM_BOT_TOKEN
+python -m cli tg                                # auto-starts local API, then polls
+```
+
+Per-message commands (remembered per chat until changed):
+- `/genre <academic_article|book|legal_act>` — override auto-detection.
+- `/vault <name or /abs/path>` — where to write. A bare name →
+  `~/docparse_vaults/<name>/<case>/`; an absolute path is used directly.
+- `/help` — summary.
+
+Default vault root: `~/docparse_vaults/<case>/`. Named vaults list is shown in
+`/help`. The core logic (`process_document`, `VaultTarget`) is transport-agnostic
+and unit-tested with fake providers (`tests/test_telegram_adapter.py`). With
+`api_base=None` it calls `run_pipeline` directly (offline/test mode); otherwise
+it POSTs to the FastAPI and extracts the returned vault zip.
+
 ## Roadmap / open seams
 
-1. Messaging adapters (Telegram first): translate "folder of articles → vault X"
-   into `POST /v1/parse` with `genre`/`target_vault` captured from the caption.
+1. ~~Messaging adapters (Telegram first)~~ — DONE. Next: Signal (needs signald)
+   or a multi-tenant gateway.
 2. More genres (legal_act full layout, report) and more providers (PaddleOCR,
    Tencent/Qwen OCR, Qwen-VL vision→markdown). To compare CN chat providers,
    add keys (DEEPSEEK_API_KEY / QWEN_API_KEY) and pass `--chat deepseek,qwen`.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -326,6 +327,95 @@ def eval(
     report_path = write_report(results, out)
     typer.echo(f"\nReport: {report_path}")
     typer.echo(f"JSON : {report_path.parent / (report_path.stem + '.json')}")
+
+
+@app.command()
+def serve_api(
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind host"),
+    port: int = typer.Option(8000, "--port", "-p", help="Bind port"),
+) -> None:
+    """Launch the FastAPI service (uvicorn)."""
+    import uvicorn
+
+    from docparse.api import app as api_app
+
+    typer.echo(f"Launching docparse API on http://{host}:{port}")
+    uvicorn.run(api_app, host=host, port=port)
+
+
+@app.command()
+def tg(
+    token: Optional[str] = typer.Option(
+        None, "--token", envvar="TELEGRAM_BOT_TOKEN",
+        help="Telegram bot token (or set TELEGRAM_BOT_TOKEN).",
+    ),
+    api_base: str = typer.Option(
+        "http://127.0.0.1:8000", "--api-base", help="Local FastAPI base URL",
+    ),
+    vault_root: Path = typer.Option(
+        Path.home() / "docparse_vaults", "--vault-root", help="Default vault root",
+    ),
+    genre: Optional[str] = typer.Option(None, "--genre", help="Default genre override"),
+    chat: str = typer.Option("mistral", "--chat", help="Chat provider"),
+    ocr: str = typer.Option("mistral", "--ocr", help="OCR provider"),
+    model: str = typer.Option("mistral-medium-latest", "--model", help="Model"),
+    api_port: int = typer.Option(8000, "--api-port", help="Port for the auto-launched local API"),
+    api_key: Optional[str] = _KEY_OPTION,
+) -> None:
+    """Run the Telegram bot locally: it talks to a local FastAPI and writes
+    vaults to a local folder on this PC.
+
+    Auto-launches the FastAPI in a background thread, then starts polling.
+    Send the bot a PDF/DOCX/MD (or a URL); use /genre and /vault to configure.
+    """
+    if not token:
+        typer.echo("Error: Telegram bot token required (--token or TELEGRAM_BOT_TOKEN).", err=True)
+        raise typer.Exit(1)
+    key = _require_key(api_key)
+
+    # Auto-launch the local FastAPI if it isn't already up.
+    import socket
+    import threading
+
+    def _api_already_up() -> bool:
+        try:
+            with socket.create_connection(("127.0.0.1", api_port), timeout=1):
+                return True
+        except OSError:
+            return False
+
+    if not _api_already_up():
+        typer.echo(f"Starting local API on port {api_port}...")
+        import uvicorn
+
+        from docparse.api import app as api_app
+
+        t = threading.Thread(
+            target=uvicorn.run,
+            kwargs={"app": api_app, "host": "127.0.0.1", "port": api_port, "log_level": "warning"},
+            daemon=True,
+        )
+        t.start()
+        # Wait for /health.
+        for _ in range(50):
+            try:
+                import requests as _r
+                if _r.get(f"{api_base}/health", timeout=1).status_code == 200:
+                    break
+            except Exception:
+                pass
+            time.sleep(0.3)
+    else:
+        typer.echo(f"Using existing API at {api_base}")
+
+    from docparse.telegram_bot import TelegramAdapter
+
+    adapter = TelegramAdapter(
+        api_base=api_base, vault_root=vault_root, default_genre=genre,
+        chat_provider=chat, ocr_provider=ocr, model=model, api_key=key,
+    )
+    typer.echo("Starting Telegram bot (Ctrl-C to stop)...")
+    adapter.run(token)
 
 
 if __name__ == "__main__":
