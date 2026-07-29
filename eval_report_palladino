@@ -1,0 +1,13 @@
+# docparse eval matrix
+
+## Results
+
+| case | provider | model | prompt | genre | goldF1 | #gold | #pred | #unlab | #halluc | cost$ | sec | error |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Palladino - 2021 - The role of epistemic communities in the “constitutionalization” of internet governance The example | mistral | mistral-medium-latest | default | academic_article | 0.9996 | 11 | 14 | 2 | 6 | 0.031491 | 35.44 | — |
+| Palladino - 2021 - The role of epistemic communities in the “constitutionalization” of internet governance The example | mistral | mistral-medium-latest | conservative | academic_article | 0.9996 | 11 | 13 | 2 | 5 | 0.031491 | 20.64 | — |
+| Palladino - 2021 - The role of epistemic communities in the “constitutionalization” of internet governance The example | mistral | mistral-medium-latest | strict | academic_article | 0.9992 | 11 | 31 | 3 | 17 | 0.031491 | 58.78 | — |
+
+## Per-case best config
+
+- **Palladino - 2021 - The role of epistemic communities in the “constitutionalization” of internet governance The example**: `mistral/mistral-medium-latest/conservative` — hallucinated=5, unlabeled=2, goldF1=0.9996

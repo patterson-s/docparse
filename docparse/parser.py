@@ -1,4 +1,10 @@
-"""Main orchestration: read → noise filter → metadata → heading detect → chunk."""
+"""Main orchestration (standard mode): read → noise filter → metadata →
+heading detect → chunk.
+
+Refactored to take ChatProvider / OcrProvider instances so callers (CLI, API,
+experiments) control which backends run. Mistral remains the default when no
+provider is passed.
+"""
 
 from __future__ import annotations
 
@@ -13,21 +19,42 @@ from . import noise_filter
 from . import metadata_extractor
 from . import heading_detector
 from . import chunker
+from . import providers
 from .models import ParsedDoc
 
 
-def parse(path: str | Path, model: str = "mistral-medium-latest", api_key: str = "") -> ParsedDoc:
+def parse(
+    path: str | Path,
+    model: str = "mistral-medium-latest",
+    api_key: str = "",
+    chat_provider=None,
+    ocr_provider=None,
+) -> ParsedDoc:
     """Parse a PDF, DOCX, or MD file into a structured ParsedDoc."""
     path = Path(path)
     fmt = readers.detect_format(path)
 
-    raw_markdown = readers.read(path, api_key=api_key)
+    # Resolve providers (Mistral default if not supplied).
+    if chat_provider is None:
+        chat_provider = providers.get_chat_provider(api_key=api_key)
+    elif isinstance(chat_provider, str):
+        chat_provider = providers.get_chat_provider(chat_provider, api_key=api_key)
+    if ocr_provider is None:
+        ocr_provider = providers.get_ocr_provider(api_key=api_key)
+    elif isinstance(ocr_provider, str):
+        ocr_provider = providers.get_ocr_provider(ocr_provider, api_key=api_key)
+
+    raw_markdown = readers.read(path, api_key=api_key, ocr_provider=ocr_provider)
     lines = raw_markdown.splitlines()
     clean_lines = noise_filter.filter_lines(lines)
     clean_markdown = "\n".join(clean_lines)
 
-    metadata = metadata_extractor.extract(clean_markdown, model=model, api_key=api_key)
-    sections = heading_detector.detect(clean_lines, model=model, api_key=api_key)
+    metadata = metadata_extractor.extract(
+        clean_markdown, model=model, chat_provider=chat_provider
+    )
+    sections = heading_detector.detect(
+        clean_lines, model=model, chat_provider=chat_provider
+    )
 
     doc_id = _to_slug(path.stem)
     chunks = chunker.build_chunks(doc_id, sections, clean_markdown)

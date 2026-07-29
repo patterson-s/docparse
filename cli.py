@@ -186,6 +186,51 @@ def parse_structured(
     typer.echo(f"\nDone. Output: {dest}")
 
 
+@app.command("build-vault")
+def build_vault(
+    input_dir: Path = typer.Argument(..., help="Folder of PDFs to process"),
+    output_dir: Path = typer.Argument(..., help="Obsidian vault output folder"),
+    workers: int = typer.Option(4, "--workers", "-w", help="Parallel OCR workers"),
+    model: str = typer.Option("mistral-large-latest", "--model", "-m", help="Mistral model for metadata extraction"),
+    serper_key: Optional[str] = typer.Option(
+        None, "--serper-key", envvar="SERPER_API_KEY",
+        help="Serper API key for citation enrichment (optional).",
+    ),
+    api_key: Optional[str] = _KEY_OPTION,
+) -> None:
+    """Process a folder of PDFs into an Obsidian vault.
+
+    Each PDF becomes a {slug}/ subfolder with:
+      {slug}.md, abstract.md, body.md, references.md, bibliographic.md
+
+    Re-running skips already-processed PDFs (tracked in .progress.json).
+    """
+    from docparse.vault_builder import build_vault as _build_vault
+
+    key = _require_key(api_key)
+
+    if not input_dir.is_dir():
+        typer.echo(f"Error: {input_dir} is not a directory", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"Input  : {input_dir}")
+    typer.echo(f"Output : {output_dir}")
+    typer.echo(f"Workers: {workers}")
+    if serper_key:
+        typer.echo("Serper : enabled (citation enrichment)")
+    else:
+        typer.echo("Serper : disabled (set SERPER_API_KEY to enable)")
+
+    _build_vault(
+        input_dir=input_dir,
+        output_dir=output_dir,
+        api_key=key,
+        serper_key=serper_key or "",
+        workers=workers,
+        model=model,
+    )
+
+
 @app.command()
 def serve(
     port: int = typer.Option(8501, "--port", "-p", help="Streamlit port"),
@@ -201,6 +246,86 @@ def serve(
     cmd = [sys.executable, "-m", "streamlit", "run", str(app_py), "--server.port", str(port)]
     typer.echo(f"Launching Streamlit on port {port}...")
     subprocess.run(cmd)
+
+
+@app.command()
+def eval(
+    corpus: Path = typer.Argument(..., help="Directory of eval cases (each a subfolder with a PDF + gold .md)"),
+    out: Path = typer.Option(Path("eval_report"), "--out", "-o", help="Report path prefix (writes .md + .json)"),
+    chat: str = typer.Option("mistral", "--chat", help="Comma-separated chat providers, e.g. mistral,deepseek"),
+    ocr: str = typer.Option("mistral", "--ocr", help="OCR provider"),
+    model: str = typer.Option("mistral-medium-latest", "--model", help="Comma-separated models"),
+    prompts: str = typer.Option("default", "--prompts", help="Comma-separated prompt variants, e.g. default,strict"),
+    genre: Optional[str] = typer.Option(None, "--genre", help="Force a genre (e.g. academic_article, book)"),
+    api_key: Optional[str] = _KEY_OPTION,
+) -> None:
+    """Run the eval matrix: each case x chat-provider x model x prompt-variant.
+
+    A 'case' is a subfolder containing exactly one .pdf and one gold-standard
+    .md (the expected structured output). Scores structure quality, gold-token
+    fidelity, cost, and latency; writes a comparison report.
+    """
+    from docparse.eval import run_matrix, write_report
+    from docparse.eval.prompts import available_variants
+
+    key = _require_key(api_key)
+
+    # Discover cases. A "corpus" is a directory whose subfolders are cases
+    # (each with a .pdf + gold .md). A single case directory (directly holding
+    # the pdf + gold) is also accepted.
+    cases: list[tuple[str, str]] = []
+
+    def _is_case(sub: Path) -> tuple[str, str] | None:
+        pdfs = list(sub.glob("*.pdf"))
+        mds = [m for m in sub.glob("*.md")
+               if m.name.lower() != "bibliographic.md"
+               and not m.name.startswith("out") and "eval_out" not in str(m)]
+        gold = [m for m in mds if m.name not in ("abstract.md", "body.md", "references.md")]
+        if pdfs and gold:
+            gold_md = next((g for g in gold if g.stem == sub.name), gold[0])
+            return str(pdfs[0]), str(gold_md)
+        return None
+
+    direct = _is_case(corpus)
+    if direct:
+        cases.append(direct)
+    else:
+        for sub in sorted(corpus.iterdir()):
+            if not sub.is_dir():
+                continue
+            c = _is_case(sub)
+            if c:
+                cases.append(c)
+
+    if not cases:
+        typer.echo(f"No eval cases found in {corpus} (need a subfolder with a .pdf + gold .md)", err=True)
+        raise typer.Exit(1)
+
+    chat_providers = [c.strip() for c in chat.split(",") if c.strip()]
+    models = [m.strip() for m in model.split(",") if m.strip()]
+    prompt_variants = [p.strip() for p in prompts.split(",") if p.strip()]
+    for pv in prompt_variants:
+        if pv not in available_variants():
+            typer.echo(f"Unknown prompt variant {pv!r}. Known: {available_variants()}", err=True)
+            raise typer.Exit(1)
+
+    typer.echo(f"Eval: {len(cases)} case(s) × {chat_providers} provider(s) × "
+               f"{models} model(s) × {prompt_variants} prompt(s)")
+
+    results = run_matrix(
+        cases,
+        chat_providers=chat_providers,
+        ocr_provider=ocr,
+        models=models,
+        prompt_variants=prompt_variants,
+        api_key=key,
+        genre_override=genre,
+        out_dir=corpus / "eval_out",
+    )
+
+    report_path = write_report(results, out)
+    typer.echo(f"\nReport: {report_path}")
+    typer.echo(f"JSON : {report_path.parent / (report_path.stem + '.json')}")
 
 
 if __name__ == "__main__":

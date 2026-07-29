@@ -21,6 +21,12 @@ env/
 *_parsed.json
 parsed/
 out/
+out_test/
+output_example/
+temp/
+
+# Eval report artifacts (regenerate via `docparse eval`)
+# eval_report_*
 
 # Test files
 test_*.md

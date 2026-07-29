@@ -71,8 +71,14 @@ def build_structured_chunks(
     doc_id: str,
     sections: list[StructuredSection],
     raw_markdown: str,
+    window: int | None = None,
+    overlap: int | None = None,
 ) -> list[Chunk]:
-    """Build chunks from structured sections, populating the language field."""
+    """Build chunks from structured sections, populating the language field.
+
+    `window`/`overlap` override the default passage size (genre-controlled:
+    books use smaller windows to avoid huge segments).
+    """
     chunks: list[Chunk] = []
     pos = 0
 
@@ -112,7 +118,9 @@ def build_structured_chunks(
         offset_map.append((offset, s.language, [s.section_id, s.label]))
         offset += len(stripped) + 1
 
-    passages = _sliding_window(full_text, PASSAGE_WORDS, PASSAGE_OVERLAP_WORDS)
+    w = window if window is not None else PASSAGE_WORDS
+    o = overlap if overlap is not None else PASSAGE_OVERLAP_WORDS
+    passages = _sliding_window(full_text, w, o)
     for passage_text, char_offset in passages:
         lang, heading_path = _lang_and_path_at_offset(offset_map, char_offset)
         chunks.append(Chunk(

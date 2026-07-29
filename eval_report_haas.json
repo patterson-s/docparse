@@ -1,0 +1,148 @@
+[
+  {
+    "case": "Haas - Introduction epistemic communities and international policy coordination",
+    "chat_provider": "mistral",
+    "ocr_provider": "mistral",
+    "model": "mistral-medium-latest",
+    "prompt_variant": "default",
+    "genre": "academic_article",
+    "error": null,
+    "metrics": {
+      "gold_token_f1": 0.9999,
+      "num_gold_sections": 5,
+      "num_pred_sections": 7,
+      "num_labeled": 6,
+      "num_unlabeled": 1,
+      "hallucinated_sections": [
+        "Decision-making processes: complexity, uncertainty, and the turn to epistemic communities for advice"
+      ],
+      "num_hallucinated": 1
+    },
+    "cost_usd": 0.05957,
+    "latency_s": 25.92,
+    "profile": {
+      "doc_type": "academic_paper",
+      "languages": [
+        "English"
+      ],
+      "structure_pattern": "monolingual"
+    },
+    "section_labels": [
+      "Introduction: epistemic communities and international policy coordination",
+      "The international setting for epistemic communities",
+      "Decision-making processes: complexity, uncertainty, and the turn to epistemic communities for advice",
+      "Distinguishing epistemic communities from other groups",
+      "Cognate literature",
+      "unlabeled_537",
+      "Methodology and guidance for further research"
+    ]
+  },
+  {
+    "case": "Haas - Introduction epistemic communities and international policy coordination",
+    "chat_provider": "mistral",
+    "ocr_provider": "mistral",
+    "model": "mistral-medium-latest",
+    "prompt_variant": "conservative",
+    "genre": "academic_article",
+    "error": null,
+    "metrics": {
+      "gold_token_f1": 0.9997,
+      "num_gold_sections": 5,
+      "num_pred_sections": 8,
+      "num_labeled": 6,
+      "num_unlabeled": 2,
+      "hallucinated_sections": [
+        "Decision-making processes: complexity, uncertainty, and the turn to epistemic communities for advice"
+      ],
+      "num_hallucinated": 1
+    },
+    "cost_usd": 0.05957,
+    "latency_s": 24.62,
+    "profile": {
+      "doc_type": "academic_paper",
+      "languages": [
+        "English"
+      ],
+      "structure_pattern": "monolingual"
+    },
+    "section_labels": [
+      "Introduction: epistemic communities and international policy coordination",
+      "The international setting for epistemic communities",
+      "Decision-making processes: complexity, uncertainty, and the turn to epistemic communities for advice",
+      "Distinguishing epistemic communities from other groups",
+      "unlabeled_361",
+      "Cognate literature",
+      "unlabeled_506",
+      "Methodology and guidance for further research"
+    ]
+  },
+  {
+    "case": "Haas - Introduction epistemic communities and international policy coordination",
+    "chat_provider": "mistral",
+    "ocr_provider": "mistral",
+    "model": "mistral-medium-latest",
+    "prompt_variant": "strict",
+    "genre": "academic_article",
+    "error": null,
+    "metrics": {
+      "gold_token_f1": 0.9997,
+      "num_gold_sections": 5,
+      "num_pred_sections": 27,
+      "num_labeled": 18,
+      "num_unlabeled": 9,
+      "hallucinated_sections": [
+        "International Organization 46, 1, Winter 1992",
+        "**TABLE 1.** *Approaches to the study of policy change*",
+        "*The modern administrative state: expansion, professionalization, and deference to the 'knowledge elite'*",
+        "Decision-making processes: complexity, uncertainty, and the turn to epistemic communities for advice",
+        "*Reality is socially constructed.*",
+        "**TABLE 2.** *Variables discussed in the literature on policy coordination*",
+        "*Ideas inform policies.*",
+        "*Actors' understanding of the world and the formulation of alternative actions are shaped by belief systems, operational codes, and cognitive maps.*",
+        "*Consensual knowledge may contribute to policy coordination and to more comprehensive policies.*",
+        "*Policy choices are often made by discrete networks of actors.*",
+        "*Coalitions are built transgovernmentally and transnationally.*",
+        "Organizations are not always captured."
+      ],
+      "num_hallucinated": 12
+    },
+    "cost_usd": 0.05957,
+    "latency_s": 30.89,
+    "profile": {
+      "doc_type": "academic_paper",
+      "languages": [
+        "English"
+      ],
+      "structure_pattern": "monolingual"
+    },
+    "section_labels": [
+      "# Introduction: epistemic communities and international policy coordination",
+      "International Organization 46, 1, Winter 1992",
+      "Introduction",
+      "unlabeled_72",
+      "**TABLE 1.** *Approaches to the study of policy change*",
+      "unlabeled_101",
+      "### The international setting for epistemic communities",
+      "*The modern administrative state: expansion, professionalization, and deference to the 'knowledge elite'*",
+      "unlabeled_176",
+      "Decision-making processes: complexity, uncertainty, and the turn to epistemic communities for advice",
+      "unlabeled_274",
+      "### Distinguishing epistemic communities from other groups",
+      "unlabeled_336",
+      "### Cognate literature",
+      "*Reality is socially constructed.*",
+      "**TABLE 2.** *Variables discussed in the literature on policy coordination*",
+      "unlabeled_432",
+      "*Ideas inform policies.*",
+      "unlabeled_511",
+      "*Actors' understanding of the world and the formulation of alternative actions are shaped by belief systems, operational codes, and cognitive maps.*",
+      "*Consensual knowledge may contribute to policy coordination and to more comprehensive policies.*",
+      "unlabeled_568",
+      "*Policy choices are often made by discrete networks of actors.*",
+      "unlabeled_588",
+      "*Coalitions are built transgovernmentally and transnationally.*",
+      "Organizations are not always captured.",
+      "### Methodology and guidance for further research"
+    ]
+  }
+]

@@ -15,12 +15,14 @@ dependencies = [
     "pandas>=2.0.0",
 ]
 
-[project.scripts]
-docparse = "cli:app"
-
 [tool.setuptools]
 py-modules = ["cli", "app"]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["docparse*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q"

@@ -1,0 +1,13 @@
+# docparse eval matrix
+
+## Results
+
+| case | provider | model | prompt | genre | goldF1 | #gold | #pred | #unlab | #halluc | cost$ | sec | error |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Haas - Introduction epistemic communities and international policy coordination | mistral | mistral-medium-latest | default | academic_article | 0.9999 | 5 | 7 | 1 | 1 | 0.05957 | 25.92 | — |
+| Haas - Introduction epistemic communities and international policy coordination | mistral | mistral-medium-latest | conservative | academic_article | 0.9997 | 5 | 8 | 2 | 1 | 0.05957 | 24.62 | — |
+| Haas - Introduction epistemic communities and international policy coordination | mistral | mistral-medium-latest | strict | academic_article | 0.9997 | 5 | 27 | 9 | 12 | 0.05957 | 30.89 | — |
+
+## Per-case best config
+
+- **Haas - Introduction epistemic communities and international policy coordination**: `mistral/mistral-medium-latest/default` — hallucinated=1, unlabeled=1, goldF1=0.9999

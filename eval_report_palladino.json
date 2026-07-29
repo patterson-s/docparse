@@ -1,0 +1,178 @@
+[
+  {
+    "case": "Palladino - 2021 - The role of epistemic communities in the “constitutionalization” of internet governance The example",
+    "chat_provider": "mistral",
+    "ocr_provider": "mistral",
+    "model": "mistral-medium-latest",
+    "prompt_variant": "default",
+    "genre": "academic_article",
+    "error": null,
+    "metrics": {
+      "gold_token_f1": 0.9996,
+      "num_gold_sections": 11,
+      "num_pred_sections": 14,
+      "num_labeled": 12,
+      "num_unlabeled": 2,
+      "hallucinated_sections": [
+        "Journal Metadata",
+        "Author Details",
+        "Article Info",
+        "Abstract",
+        "Introduction",
+        "Author Contact and DOI"
+      ],
+      "num_hallucinated": 6
+    },
+    "cost_usd": 0.031491,
+    "latency_s": 35.44,
+    "profile": {
+      "doc_type": "academic_paper",
+      "languages": [
+        "English"
+      ],
+      "structure_pattern": "monolingual"
+    },
+    "section_labels": [
+      "Journal Metadata",
+      "Author Details",
+      "Article Info",
+      "Abstract",
+      "Introduction",
+      "Author Contact and DOI",
+      "Digital constitutionalism and epistemic communities: A necessary nexus?",
+      "Research questions, data, and methods",
+      "unlabeled_214",
+      "Results and discussion",
+      "Conclusions",
+      "Declaration of competing interest",
+      "References",
+      "unlabeled_566"
+    ]
+  },
+  {
+    "case": "Palladino - 2021 - The role of epistemic communities in the “constitutionalization” of internet governance The example",
+    "chat_provider": "mistral",
+    "ocr_provider": "mistral",
+    "model": "mistral-medium-latest",
+    "prompt_variant": "conservative",
+    "genre": "academic_article",
+    "error": null,
+    "metrics": {
+      "gold_token_f1": 0.9996,
+      "num_gold_sections": 11,
+      "num_pred_sections": 13,
+      "num_labeled": 11,
+      "num_unlabeled": 2,
+      "hallucinated_sections": [
+        "Journal Metadata and Cover Page",
+        "Author Details",
+        "ARTICLE INFO",
+        "ABSTRACT",
+        "1. Introduction"
+      ],
+      "num_hallucinated": 5
+    },
+    "cost_usd": 0.031491,
+    "latency_s": 20.64,
+    "profile": {
+      "doc_type": "academic_paper",
+      "languages": [
+        "English"
+      ],
+      "structure_pattern": "monolingual"
+    },
+    "section_labels": [
+      "Journal Metadata and Cover Page",
+      "Author Details",
+      "ARTICLE INFO",
+      "ABSTRACT",
+      "1. Introduction",
+      "2. Digital constitutionalism and epistemic communities: A necessary nexus?",
+      "3. Research questions, data, and methods",
+      "unlabeled_216",
+      "4. Results and discussion",
+      "5. Conclusions",
+      "Declaration of competing interest",
+      "References",
+      "unlabeled_566"
+    ]
+  },
+  {
+    "case": "Palladino - 2021 - The role of epistemic communities in the “constitutionalization” of internet governance The example",
+    "chat_provider": "mistral",
+    "ocr_provider": "mistral",
+    "model": "mistral-medium-latest",
+    "prompt_variant": "strict",
+    "genre": "academic_article",
+    "error": null,
+    "metrics": {
+      "gold_token_f1": 0.9992,
+      "num_gold_sections": 11,
+      "num_pred_sections": 31,
+      "num_labeled": 28,
+      "num_unlabeled": 3,
+      "hallucinated_sections": [
+        "Telecommunications Policy 45 (2021) 102149",
+        "Contents lists available at ScienceDirect",
+        "Telecommunications Policy",
+        "journal homepage: http://www.elsevier.com/locate/telpol",
+        "Nicola Palladino",
+        "Dublin City University, School of Law and Government, DCU Glasnevin Campus, Dublin 9, Ireland",
+        "ARTICLE INFO",
+        "Keywords:",
+        "ABSTRACT",
+        "1. Introduction",
+        "E-mail addresses: nicola.palladino@dcu.ie, nicolapalladino@gmail.com.",
+        "https://doi.org/10.1016/j.telpol.2021.102149",
+        "Received 31 January 2021; Accepted 22 March 2021",
+        "Available online 3 April 2021",
+        "0308-5961/© 2021 Elsevier Ltd. All rights reserved.",
+        "N. Palladino",
+        "Telecommunications Policy 45 (2021) 102149"
+      ],
+      "num_hallucinated": 17
+    },
+    "cost_usd": 0.031491,
+    "latency_s": 58.78,
+    "profile": {
+      "doc_type": "academic_paper",
+      "languages": [
+        "English"
+      ],
+      "structure_pattern": "monolingual"
+    },
+    "section_labels": [
+      "Telecommunications Policy 45 (2021) 102149",
+      "Contents lists available at ScienceDirect",
+      "Telecommunications Policy",
+      "journal homepage: http://www.elsevier.com/locate/telpol",
+      "Nicola Palladino",
+      "Dublin City University, School of Law and Government, DCU Glasnevin Campus, Dublin 9, Ireland",
+      "ARTICLE INFO",
+      "Keywords:",
+      "ABSTRACT",
+      "1. Introduction",
+      "E-mail addresses: nicola.palladino@dcu.ie, nicolapalladino@gmail.com.",
+      "https://doi.org/10.1016/j.telpol.2021.102149",
+      "Received 31 January 2021; Accepted 22 March 2021",
+      "Available online 3 April 2021",
+      "0308-5961/© 2021 Elsevier Ltd. All rights reserved.",
+      "---",
+      "N. Palladino",
+      "Telecommunications Policy 45 (2021) 102149",
+      "unlabeled_67",
+      "## 2. Digital constitutionalism and epistemic communities: A necessary nexus?",
+      "### 3. Research questions, data, and methods",
+      "unlabeled_214",
+      "## 4. Results and discussion",
+      "### 4.1. Background and affiliations of HLEG-AI members",
+      "### 4.2. The discursive network",
+      "#### 4.3. Convergence around a core set of digital constitutionalism principles and values",
+      "#### 4.4. The role of the HLEG-AI in spreading digital constitutionalism views",
+      "## 5. Conclusions",
+      "## Declaration of competing interest",
+      "## References",
+      "unlabeled_566"
+    ]
+  }
+]

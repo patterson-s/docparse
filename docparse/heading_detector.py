@@ -1,8 +1,8 @@
-"""LLM-based heading detection using Mistral.
+"""LLM-based heading detection using a pluggable ChatProvider (Mistral default).
 
-Adapted from LiteratureTool/latex_structuring/structurer.py _detect_sections()
-and _fill_gaps(), but using Mistral chat instead of Cohere, and extended to
-handle both academic papers and consulting/IDRC-style reports.
+Refactored from LiteratureTool/latex_structuring/structurer.py _detect_sections()
+and _fill_gaps(), but with the chat backend swapped via ChatProvider. The prompt,
+gap-filling, and heading-path logic are unchanged.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import json
 import re
 
 from .models import Section
+from . import providers
 
 _SYSTEM = """You are analyzing a document (OCR'd or converted to markdown) with line numbers prefixed.
 Detect the heading hierarchy and return a complete section tree.
@@ -34,31 +35,17 @@ Rules:
 
 Return JSON: {"sections": [{"level": 1, "title": "...", "start_line": N, "end_line": M}, ...]}"""
 
-_MAX_RETRIES = 3
-
 
 def _numbered(lines: list[str]) -> str:
     return "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines))
 
 
-def _call_json(client: Mistral, model: str, lines: list[str]) -> dict:
+def _call_json(client, model: str, lines: list[str]) -> dict:
     user = _numbered(lines)
-    for attempt in range(_MAX_RETRIES):
-        try:
-            response = client.chat.complete(
-                model=model,
-                messages=[
-                    {"role": "system", "content": _SYSTEM},
-                    {"role": "user", "content": user},
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.0,
-            )
-            return json.loads(response.choices[0].message.content)
-        except Exception:
-            if attempt == _MAX_RETRIES - 1:
-                raise
-    return {}
+    data = client.complete_json(
+        _SYSTEM, user, response_format={"type": "json_object"}, model=model
+    )
+    return data or {}
 
 
 def _fill_gaps(sections: list[dict], total_lines: int) -> list[dict]:
@@ -99,14 +86,17 @@ def _build_heading_paths(raw: list[dict]) -> list[dict]:
     return result
 
 
-def detect(lines: list[str], model: str = "mistral-medium-latest", api_key: str = "") -> list[Section]:
+def detect(lines: list[str], model: str = "mistral-medium-latest", api_key: str = "", chat_provider=None) -> list[Section]:
     """Detect sections in a list of document lines. Returns Section objects with heading_path."""
     if not lines:
         return []
 
-    from mistralai import Mistral
-    client = Mistral(api_key=api_key)
-    data = _call_json(client, model, lines)
+    if chat_provider is None:
+        chat_provider = providers.get_chat_provider(api_key=api_key)
+    elif isinstance(chat_provider, str):
+        chat_provider = providers.get_chat_provider(chat_provider, api_key=api_key)
+
+    data = _call_json(chat_provider, model, lines)
     raw_sections = _fill_gaps(data.get("sections", []), len(lines))
     raw_sections = _build_heading_paths(raw_sections)
 

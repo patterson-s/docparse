@@ -1,10 +1,8 @@
-"""Agentic structured post-processing pipeline.
+"""Agentic structured post-processing pipeline (provider + genre aware).
 
-Two LLM phases:
-  1. Survey  — understand doc type, languages, structure pattern
-  2. Plan    — map exact line ranges to labeled, language-tagged sections
-
-Then deterministic execution: slice lines → StructuredDoc.
+Two LLM phases (survey, plan) run through a pluggable ChatProvider. The genre
+handler supplies a plan_hint (genre-specific sectioning instruction) and the
+chunk window/overlap. Deterministic execution then slices lines -> StructuredDoc.
 
 Output builders produce combined markdown, per-language markdown, and JSON.
 """
@@ -19,28 +17,16 @@ from pathlib import Path
 
 from .models import DocProfile, StructuredSection, StructuredDoc, Chunk
 from .chunker import build_structured_chunks
+from . import providers
 
 _MAX_RETRIES = 3
 
-# ── LLM call helper ───────────────────────────────────────────────────────────
 
 def _call_json(client, model: str, system: str, user: str) -> dict:
-    for attempt in range(_MAX_RETRIES):
-        try:
-            response = client.chat.complete(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.0,
-            )
-            return json.loads(response.choices[0].message.content)
-        except Exception:
-            if attempt == _MAX_RETRIES - 1:
-                raise
-    return {}
+    data = client.complete_json(
+        system, user, response_format={"type": "json_object"}, model=model
+    )
+    return data or {}
 
 
 def _numbered(lines: list[str]) -> str:
@@ -52,7 +38,7 @@ def _numbered(lines: list[str]) -> str:
 _SURVEY_SYSTEM = """Analyze the opening of this document and identify its key characteristics.
 
 Return JSON with exactly these keys:
-  doc_type           (string) — e.g. "legal_act", "contract", "report", "academic_paper", "policy_brief"
+  doc_type           (string) — e.g. "legal_act", "contract", "report", "academic_paper", "policy_brief", "book"
   languages          (list of strings) — language names present, e.g. ["English", "isiXhosa"]
   structure_pattern  (string) — one of: "monolingual" | "bilingual_alternating" | "bilingual_parallel" | "multilingual"
   structure_notes    (string) — 1-2 sentences describing how the document is organized
@@ -79,13 +65,14 @@ def _survey(client, model: str, lines: list[str]) -> DocProfile:
 
 # ── Phase 2: Structure Plan ───────────────────────────────────────────────────
 
-def _build_plan_system(profile: DocProfile) -> str:
+def _build_plan_system(profile: DocProfile, plan_hint: str = "") -> str:
     lang_list = ", ".join(f'"{l}"' for l in profile.languages) or '"unknown"'
+    hint_block = f"\n\nGENRE-SPECIFIC INSTRUCTION:\n{plan_hint}\n" if plan_hint else ""
     return f"""You are structuring a {profile.doc_type} document.
 Languages present: {", ".join(profile.languages)}.
 Structure pattern: {profile.structure_pattern}.
 Notes: {profile.structure_notes}
-
+{hint_block}
 The document text has line numbers prefixed (e.g. "1: text").
 Identify ALL top-level sections with their exact line ranges.
 
@@ -124,8 +111,8 @@ def _fill_gaps(sections: list[dict], total_lines: int) -> list[dict]:
     return filled
 
 
-def _plan(client, model: str, lines: list[str], profile: DocProfile) -> list[dict]:
-    system = _build_plan_system(profile)
+def _plan(client, model: str, lines: list[str], profile: DocProfile, plan_hint: str = "") -> list[dict]:
+    system = _build_plan_system(profile, plan_hint)
     data = _call_json(client, model, system, _numbered(lines))
     raw = data.get("sections", [])
     return _fill_gaps(raw, len(lines))
@@ -177,17 +164,47 @@ def structure(
     document_id: str,
     model: str = "mistral-medium-latest",
     api_key: str = "",
+    chat_provider=None,
+    genre_plan_hint: str = "",
+    chunk_window: int = 300,
+    chunk_overlap: int = 50,
+    survey_system: str | None = None,
+    plan_system_fn=None,
 ) -> StructuredDoc:
-    """Run survey → plan → execute on OCR markdown. Returns a StructuredDoc."""
-    from mistralai import Mistral
-    client = Mistral(api_key=api_key)
+    """Run survey → plan → execute on OCR markdown. Returns a StructuredDoc.
+
+    `genre_plan_hint` and `chunk_window/overlap` come from the resolved genre
+    handler so document-genre awareness flows into the pipeline.
+
+    `survey_system` / `plan_system_fn` are optional prompt overrides (used by
+    the eval harness to A/B prompt variants). When None, the built-in prompts
+    are used, so default behaviour is unchanged.
+    """
+    if chat_provider is None:
+        chat_provider = providers.get_chat_provider(api_key=api_key)
+    elif isinstance(chat_provider, str):
+        chat_provider = providers.get_chat_provider(chat_provider, api_key=api_key)
 
     lines = raw_markdown.splitlines()
 
-    profile = _survey(client, model, lines)
-    plan = _plan(client, model, lines, profile)
+    if survey_system is not None:
+        sample = _numbered(lines[:250])
+        profile = _survey_with_system(chat_provider, model, survey_system, sample)
+    else:
+        profile = _survey(chat_provider, model, lines)
+
+    if plan_system_fn is not None:
+        system = plan_system_fn(profile, genre_plan_hint)
+    else:
+        system = _build_plan_system(profile, genre_plan_hint)
+    data = _call_json(chat_provider, model, system, _numbered(lines))
+    plan = _fill_gaps(data.get("sections", []), len(lines))
+
     sections = _execute(lines, plan)
-    chunks = build_structured_chunks(document_id, sections, raw_markdown)
+    chunks = build_structured_chunks(
+        document_id, sections, raw_markdown,
+        window=chunk_window, overlap=chunk_overlap,
+    )
 
     return StructuredDoc(
         document_id=document_id,
@@ -197,6 +214,18 @@ def structure(
         chunks=chunks,
         raw_markdown=raw_markdown,
         parsed_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+def _survey_with_system(client, model: str, system: str, user: str) -> DocProfile:
+    """Survey phase with an explicit (variant) system prompt."""
+    data = _call_json(client, model, system, user)
+    return DocProfile(
+        doc_type=data.get("doc_type", "unknown"),
+        languages=data.get("languages", []),
+        structure_pattern=data.get("structure_pattern", "unknown"),
+        structure_notes=data.get("structure_notes", ""),
+        estimated_sections=data.get("estimated_sections", []),
     )
 
 
@@ -263,8 +292,7 @@ def to_language_markdown(doc: StructuredDoc, lang_slug: str) -> str:
     if not included:
         return ""
 
-    lines: list[str] = []
-    lines += [
+    lines: list[str] = [
         "---",
         f"document_id: {doc.document_id}",
         f"language: {lang_slug}",
