@@ -29,6 +29,17 @@ def _require_key(api_key: Optional[str]) -> str:
     return api_key
 
 
+def _api_up(port: int, base: str) -> bool:
+    """Return True if a FastAPI is already listening on the given port."""
+    import socket
+
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
 @app.command()
 def parse(
     file: Path = typer.Argument(..., help="PDF, DOCX, or MD file to parse"),
@@ -377,14 +388,7 @@ def tg(
     import socket
     import threading
 
-    def _api_already_up() -> bool:
-        try:
-            with socket.create_connection(("127.0.0.1", api_port), timeout=1):
-                return True
-        except OSError:
-            return False
-
-    if not _api_already_up():
+    if not _api_up(api_port, api_base):
         typer.echo(f"Starting local API on port {api_port}...")
         import uvicorn
 
@@ -416,6 +420,76 @@ def tg(
     )
     typer.echo("Starting Telegram bot (Ctrl-C to stop)...")
     adapter.run(token)
+
+
+@app.command()
+def signal(
+    phone_number: str = typer.Option(
+        "", "--phone", envvar="SIGNAL_PHONE_NUMBER",
+        help="Your Signal number (registered with signald), e.g. +15551234567.",
+    ),
+    signald_url: str = typer.Option(
+        "http://127.0.0.1:8080", "--signald-url", envvar="SIGNAL_CLI_REST_API",
+        help="signald / signal-cli REST API base URL.",
+    ),
+    api_base: str = typer.Option(
+        "http://127.0.0.1:8000", "--api-base", help="Local FastAPI base URL",
+    ),
+    vault_root: Path = typer.Option(
+        Path.home() / "docparse_vaults", "--vault-root", help="Default vault root",
+    ),
+    genre: Optional[str] = typer.Option(None, "--genre", help="Default genre override"),
+    chat: str = typer.Option("mistral", "--chat", help="Chat provider"),
+    ocr: str = typer.Option("mistral", "--ocr", help="OCR provider"),
+    model: str = typer.Option("mistral-medium-latest", "--model", help="Model"),
+    api_port: int = typer.Option(8000, "--api-port", help="Port for the auto-launched local API"),
+    api_key: Optional[str] = _KEY_OPTION,
+) -> None:
+    """Run the Signal adapter locally: signald -> local FastAPI -> local vault.
+
+    Requires a running signald (or signal-cli REST API) on this PC with your
+    phone number registered. Auto-launches the local FastAPI in a thread.
+    Send the bot a PDF/DOCX/MD attachment (or a URL); use /genre and /vault.
+    """
+    if not phone_number:
+        typer.echo("Error: Signal phone number required (--phone or SIGNAL_PHONE_NUMBER).", err=True)
+        raise typer.Exit(1)
+    key = _require_key(api_key)
+
+    # Auto-launch the local FastAPI if it isn't already up (same as `tg`).
+    import socket
+    import threading
+
+    if not _api_up(api_port, api_base):
+        typer.echo(f"Starting local API on port {api_port}...")
+        import uvicorn
+
+        from docparse.api import app as api_app
+
+        threading.Thread(
+            target=uvicorn.run,
+            kwargs={"app": api_app, "host": "127.0.0.1", "port": api_port, "log_level": "warning"},
+            daemon=True,
+        ).start()
+        for _ in range(50):
+            try:
+                import requests as _r
+                if _r.get(f"{api_base}/health", timeout=1).status_code == 200:
+                    break
+            except Exception:
+                pass
+            time.sleep(0.3)
+    else:
+        typer.echo(f"Using existing API at {api_base}")
+
+    from docparse.signal_bot import SignalAdapter
+
+    adapter = SignalAdapter(
+        api_base=api_base, vault_root=vault_root, default_genre=genre,
+        chat_provider=chat, ocr_provider=ocr, model=model, api_key=key,
+    )
+    typer.echo("Starting Signal adapter (Ctrl-C to stop)...")
+    adapter.run(signald_url=signald_url, phone_number=phone_number)
 
 
 if __name__ == "__main__":

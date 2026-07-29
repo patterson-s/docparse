@@ -198,10 +198,50 @@ and unit-tested with fake providers (`tests/test_telegram_adapter.py`). With
 `api_base=None` it calls `run_pipeline` directly (offline/test mode); otherwise
 it POSTs to the FastAPI and extracts the returned vault zip.
 
+## Signal adapter (`docparse/signal_bot.py` + `docparse signal`)
+
+Signal has **no native bot API**, so this adapter talks to a local
+`signald` (or `signal-cli` REST API) daemon via the `signalbot` library. The
+daemon must be running on this PC with your phone number registered — there is
+no cloud/SaaS shortcut. Same local-first model as Telegram: signald → local
+FastAPI → local vault folder.
+
+```bash
+# 1) (one-time) install + register signald with your number (needs WSL/Linux or a
+#    JVM on Windows; see below). Then in .env:
+#      SIGNAL_PHONE_NUMBER=+15551234567
+#      SIGNAL_CLI_REST_API=http://127.0.0.1:8080
+export $(grep -v '^#' .env | xargs)
+python -m cli signal                      # connects to signald, auto-starts local API
+```
+
+Per-message commands are identical to the Telegram adapter (`/genre`, `/vault`,
+`/help`); send a PDF/DOCX/MD attachment or a URL. The routing/parsing logic is
+shared (`process_document`, `VaultTarget`) and unit-tested
+(`tests/test_signal_adapter.py`).
+
+### signald prerequisite (Windows)
+
+Signal's desktop/client can't be driven programmatically, so you need
+`signald` (a daemon wrapping `libsignal`) exposing a REST API on `:8080`:
+- WSL2 (Ubuntu) is the easiest: `apt install signald`, enable its REST API
+  (`signald --rest-api`), then forward `:8080` to Windows (it's already
+  loopback-accessible from the host).
+- Or run `signal-cli` with `--rest-api` under WSL2 / a JVM.
+- Register once: `signald` links to your Signal account via a QR/phone-number
+  flow; after that the daemon can send/receive on your number.
+
+### Telegram vs Signal
+
+Both adapters share the same `process_document`/`VaultTarget` core. Telegram is
+turnkey (just a bot token). Signal is more private but requires the signald
+daemon. Pick whichever fits; `docparse tg` and `docparse signal` are
+interchangeable front-ends.
+
 ## Roadmap / open seams
 
-1. ~~Messaging adapters (Telegram first)~~ — DONE. Next: Signal (needs signald)
-   or a multi-tenant gateway.
+1. ~~Messaging adapters~~ — Telegram DONE; Signal DONE (needs local signald).
+   Next: a multi-tenant gateway that fronts both.
 2. More genres (legal_act full layout, report) and more providers (PaddleOCR,
    Tencent/Qwen OCR, Qwen-VL vision→markdown). To compare CN chat providers,
    add keys (DEEPSEEK_API_KEY / QWEN_API_KEY) and pass `--chat deepseek,qwen`.
