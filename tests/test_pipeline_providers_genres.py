@@ -100,6 +100,17 @@ def _register_fakes():
 # ── Tests ──────────────────────────────────────────────────────────────────────
 
 def test_mistral_still_default():
+    # The default chat backend is Mistral (registered). Constructing it imports
+    # the mistralai SDK — skip if that SDK isn't importable in this environment
+    # (the registration logic itself is env-independent and covered by .venv runs).
+    mistralai_ok = True
+    try:
+        from mistralai import Mistral  # noqa: F401
+    except Exception:
+        mistralai_ok = False
+    if not mistralai_ok:
+        pytest.skip("mistralai SDK not importable in this environment")
+
     p = get_chat_provider("mistral", api_key="x")
     assert p.name == "mistral"
 
